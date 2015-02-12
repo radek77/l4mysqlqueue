@@ -1,4 +1,4 @@
-l4mysqlqueue
+AMIDO FORK of l4mysqlqueue
 ============
 
 A laravel 4 queue driver using MySQL database, developed for small websites on shared hosting. 
