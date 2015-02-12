@@ -17,7 +17,7 @@ class MysqlQueue extends Queue implements QueueInterface {
     protected $table;
 
     /**
-     * The name of queue. 
+     * The name of queue.
      *
      * @var string
      */
@@ -41,15 +41,25 @@ class MysqlQueue extends Queue implements QueueInterface {
     /**
      * Push a new job onto the queue.
      *
+     * $key is an optional unique key. If supplied a job will not be created if the $key matches an existing job.
+     *
      * @param  string  $job
      * @param  mixed   $data
      * @param  string  $queue
+     * @param  string  $key
      * @return mixed
      */
-    public function push($job, $data = '', $queue = null)
+    public function push($job, $data = '', $queue = null, $key = null)
     {
+        if (!is_null($key)) {
+            $result = DB::table($this->table)->where('key', '=', $key)->get();
+            if (!empty($result)) {
+                // Should there be a meaningful return value?
+                return 0;
+            }
+        }
         if ($queue === null) { $queue = $this->queue; }
-        return $this->pushRaw($this->createPayload($job, $data), $queue);
+        return $this->pushRaw($this->createPayload($job, $data), $queue, ['key' => $key]);
     }
 
     /**
@@ -63,7 +73,8 @@ class MysqlQueue extends Queue implements QueueInterface {
     public function pushRaw($payload, $queue = null, array $options = array())
     {
         if ($queue === null) { $queue = $this->queue; }
-        $jobId = $this->insertJobRecord($payload, Carbon::now(), $queue);
+        $key = isset($options['key']) ? $options['key'] : null;
+        $jobId = $this->insertJobRecord($payload, Carbon::now(), $queue, $key);
         return 0;
     }
 
@@ -86,7 +97,7 @@ class MysqlQueue extends Queue implements QueueInterface {
         } else {
             throw new ErrorException('DateTime or int $delay required. ');
         }
-        $jobId = $this->insertJobRecord($this->createPayload($job, $data), 
+        $jobId = $this->insertJobRecord($this->createPayload($job, $data),
             $time, $queue);
         return 0;
     }
@@ -109,25 +120,27 @@ class MysqlQueue extends Queue implements QueueInterface {
     }
 
     /**
-     * Insert a job record into database. 
+     * Insert a job record into database.
      *
-     * @param  string   $payload Payload string. 
+     * @param  string   $payload Payload string.
      * @param  DateTime $time    Exact firing time of the job.
-     * @param  string   $queue   Queue name of the job. 
-     * @return int               ID of new record inserted. 
+     * @param  string   $queue   Queue name of the job.
+     * @param  string   $key     Optional unique key
+     * @return int               ID of new record inserted.
      */
-    private function insertJobRecord($payload, $time, $queue)
+    private function insertJobRecord($payload, $time, $queue, $key = null)
     {
         if (!$time instanceof DateTime) {
             throw new ErrorException('An explicit DateTime value $time is required. ');
         }
         $jobId = DB::table($this->table)->insertGetId([
-            'queue_name' => $queue, 
-            'payload'  => $payload, 
-            'status'   => 'pending', 
-            'attempts' => 1, 
-            'fireon'   => $time->getTimestamp(), 
+            'queue_name' => $queue,
+            'payload'  => $payload,
+            'status'   => 'pending',
+            'attempts' => 1,
+            'fireon'   => $time->getTimestamp(),
+            'key'      => $key
         ]);
-        return $jobId; 
+        return $jobId;
     }
 }
