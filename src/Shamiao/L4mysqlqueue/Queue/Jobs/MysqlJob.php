@@ -23,7 +23,7 @@ class MysqlJob extends Job {
      * @var int
      */
     protected $id;
-    
+
     /**
      * Full database record values of the job.
      *
@@ -60,8 +60,8 @@ class MysqlJob extends Job {
 
         $this->container = $container;
         $this->id = $id;
-        if ($record === null) { 
-            $this->record = get_object_vars(DB::table($this->table)->find($id)); 
+        if ($record === null) {
+            $this->record = get_object_vars(DB::table($this->table)->find($id));
         } else { $this->record = get_object_vars($record); }
 
         $this->queue = $this->record['queue_name'];
@@ -88,16 +88,16 @@ class MysqlJob extends Job {
 
         $this->resolveAndFire(array('job' => $this->job, 'data' => $this->data));
 
-        /** 
-         * Auto delete is implemented. 
-         * However, WTF is this AUTO DELETE ??? 
-         * None of laravel builtin Job class implements it, 
+        /**
+         * Auto delete is implemented.
+         * However, WTF is this AUTO DELETE ???
+         * None of laravel builtin Job class implements it,
          * nor any document mentions it.
          */
-        if ($this->autoDelete()) { $this->delete(); return; } 
+        if ($this->autoDelete()) { $this->delete(); return; }
 
         /**
-         * Auto release if job was not explicitly deleted/released. 
+         * Auto release if job was not explicitly deleted/released.
          */
         if ($this->record['status'] == 'running') { $this->release(); }
     }
@@ -145,10 +145,15 @@ class MysqlJob extends Job {
      */
     public function delete()
     {
-        $this->record['status'] = 'deleted';
-        DB::table($this->table)->where('ID', $this->id)->update([
-            'status' => $this->record['status'],
-        ]);
+        if (Config::get('queue.harddelete', false)) {
+            DB::table($this->table)->where('ID', $this->id)->delete();
+        }
+        else {
+            $this->record['status'] = 'deleted';
+            DB::table($this->table)->where('ID', $this->id)->update([
+                'status' => $this->record['status'],
+            ]);
+        }
     }
 
     /**
