@@ -145,7 +145,7 @@ class MysqlJob extends Job {
      */
     public function delete()
     {
-        if (Config::get('queue.harddelete', false)) {
+        if (\Config::get('queue.l4mysqlqueue.harddelete', true)) {
             DB::table($this->table)->where('ID', $this->id)->delete();
         }
         else {
