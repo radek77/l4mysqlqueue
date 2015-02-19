@@ -51,14 +51,14 @@ class MysqlQueue extends Queue implements QueueInterface {
      */
     public function push($job, $data = '', $queue = null, $key = null)
     {
+        if ($queue === null) { $queue = $this->queue; }
         if (!is_null($key)) {
-            $result = DB::table($this->table)->where('key', '=', $key)->get();
+            $result = DB::table($this->table)->where('queue', '=', $this->queue)->where('key', '=', $key)->get();
             if (!empty($result)) {
                 // Should there be a meaningful return value?
                 return 0;
             }
         }
-        if ($queue === null) { $queue = $this->queue; }
         return $this->pushRaw($this->createPayload($job, $data), $queue, ['key' => $key]);
     }
 
